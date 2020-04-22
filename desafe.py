@@ -5,9 +5,11 @@ Usage:
   desafe card <file> [<filter>...] [-p] [-r] [-d]
   desafe label <file>
   desafe export <file> (json|xml) [<output-file>]
+  desafe pass <file> <filter>
   desafe (-h | --help)
 
 self.args:
+  pass    Print password
   card    Print cards
   label   Print labels
   export  Exports given file in clear in the given format (json or xml).
@@ -85,6 +87,29 @@ def is_valid(filters, content):
             return True
     return False
 
+def get_card(card):
+    ocard = {'title': 'unknown', 'field': []}
+    if '@title' in card:
+        ocard['title'] = card['@title']
+    if 'field' in card:
+        # ensure field is a list
+        if not isinstance(card['field'], (list)):
+            field = []
+            field.append(card['field'])
+            card['field'] = field
+
+        for field in card['field']:
+            ofield = {'name': 'Unknown', 'text': ''}
+
+            if '@name' in field and field['@name']:
+                ofield['name'] = field['@name']
+            if '@type' in field and field['@type']:
+                ofield['type'] = field['@type']
+            if '#text' in field and field['#text']:
+                ofield['text'] = field['#text']
+            ocard['field'].append(ofield)
+    return ocard;
+
 
 class Shell(object):
     def __init__(self):
@@ -117,6 +142,8 @@ class Shell(object):
             self.print_labels()
         if self.args["card"]:
             self.print_cards()
+        if self.args['pass']:
+            self.print_password()
 
     def export(self):
 
@@ -173,34 +200,38 @@ class Shell(object):
                             ocard["field"] = fields
                         print(json.dumps(ocard, indent=4))
                     else:
-                        ocard = {"title": "unknown", "field": []}
-                        if "@title" in card:
-                            ocard["title"] = card["@title"]
-                        if "field" in card:
-                            # ensure field is a list
-                            if not isinstance(card["field"], (list)):
-                                field = []
-                                field.append(card["field"])
-                                card["field"] = field
+                        ocard = get_card(card)
+                        print u'Card: {}'.format(ocard['title'])
+                        for field in ocard['field']:
+                            if not self.args['--password'] and 'type' in field and 'password' == field['type']:
+                                continue
+                            print u'  {}: {}'.format(field['name'], field['text'])
 
-                            for field in card["field"]:
-                                if (
-                                    not self.args["--password"]
-                                    and "@type" in field
-                                    and "password" == field["@type"]
-                                ):
-                                    continue
-                                ofield = {"name": "Unknown", "text": ""}
+    def print_password(self):
+        for db in self.doc:
+            if 'card' not in self.doc[db] or len(self.doc[db]['card']) <= 0:
+                print "database does not contain cards"
+                return
 
-                                if "@name" in field and field["@name"]:
-                                    ofield["name"] = field["@name"]
-                                if "#text" in field and field["#text"]:
-                                    ofield["text"] = field["#text"]
-                                ocard["field"].append(ofield)
-                        print(u"Card: {}".format(ocard["title"]))
-                        for field in ocard["field"]:
-                            print(u"  {}: {}".format(field["name"], field["text"]))
+            cards = []
+            for card in self.doc[db]['card']:
+                if is_valid(self.args['<filter>'], card):
+                    # skip deleted ones
+                    if '@deleted' in card and card['@deleted'] == 'true' and not self.args['--deleted']:
+                        continue
+                    cards.append(card)
 
+            if len(cards) == 0:
+                print "ERROR: filter returned no card."
+                sys.exit(1)
+            if len(cards) > 1:
+                print "ERROR: filter returned more than 1 card."
+                sys.exit(1)
+
+            card = get_card(cards[0])
+            for field in card['field']:
+                if 'type' in field and 'password' == field['type']:
+                    print u'{}'.format(field['text'])
 
 def main():
     Shell()
