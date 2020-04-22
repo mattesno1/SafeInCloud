@@ -113,7 +113,7 @@ def get_card(card):
 
 class Shell(object):
     def __init__(self):
-        self.args = docopt(__doc__)
+        self.args = docopt(__doc__, version='Desafe for Safe In Cloud 0.0.6')
         # print self.args
 
         file_path = self.args["<file>"]
