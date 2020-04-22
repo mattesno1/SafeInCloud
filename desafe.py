@@ -2,10 +2,10 @@
 A python utility to decrypt Safe In Cloud databases files
 
 Usage:
-  desafe card <file> [<filter>...] [-p] [-r] [-d]
-  desafe label <file>
-  desafe export <file> (json|xml) [<output-file>]
-  desafe pass <file> <filter>
+  desafe <file> card [<filter>...] [-p] [-r] [-d]
+  desafe <file> label
+  desafe <file> export (json|xml) [<output-file>]
+  desafe <file> pass <filter>
   desafe (-h | --help)
 
 self.args:
