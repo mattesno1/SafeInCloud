@@ -87,6 +87,9 @@ def is_valid(filters, content):
             return True
     return False
 
+def is_secret(type):
+    return type and type in ['password', 'pin', 'secret']
+
 def get_card(card):
     ocard = {'title': 'unknown', 'field': []}
     if '@title' in card:
@@ -194,8 +197,8 @@ class Shell(object):
                         ocard = card
                         if not self.args["--password"] and "field" in card:
                             fields = []
-                            for field in card["field"]:
-                                if "@type" not in field or "password" != field["@type"]:
+                            for field in card['field']:
+                                if '@type' not in field or not is_secret(field['@type']):
                                     fields.append(field)
                             ocard["field"] = fields
                         print(json.dumps(ocard, indent=4))
@@ -203,7 +206,7 @@ class Shell(object):
                         ocard = get_card(card)
                         print u'Card: {}'.format(ocard['title'])
                         for field in ocard['field']:
-                            if not self.args['--password'] and 'type' in field and 'password' == field['type']:
+                            if not self.args['--password'] and 'type' in field and is_secret(field['type']):
                                 continue
                             print u'  {}: {}'.format(field['name'], field['text'])
 
