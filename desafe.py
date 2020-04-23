@@ -4,7 +4,7 @@ A python utility to decrypt Safe In Cloud databases files
 Usage:
   desafe <file> card [-t TITLE] [-f FILTER...] [-p] [-r] [-d]
   desafe <file> pass -t TITLE [-f FILTER...]
-  desafe <file> export (json|xml) [<output-file>]
+  desafe <file> export (json|xml) [-o FILE]
   desafe (-h | --help)
 
 Arguments:
@@ -19,6 +19,7 @@ Options:
   -p --password          Include passwords in output.
   -r --raw               Print information keeping the original format.
   -d --deleted           Included deleted items.
+  -o --output FILE       Included deleted items.
   -h --help              Show this screen.
   -v --version           Show version.
 """
@@ -158,14 +159,12 @@ class Shell(object):
         else:  # it must be xml
             output = self.xmldata
 
-        if self.args["<output-file>"]:
+        if self.args['--output']:
             try:
-                with open(self.args["<output-file>"], "w") as f:
+                with open(self.args['--output'], "w") as f:
                     f.write(output)
             except Exception:
-                print(
-                    "ERROR: could not write on '{}'".format(self.args["<output-file>"])
-                )
+                print "ERROR: could not write on '{}'".format(self.args['--output'])
                 sys.exit(1)
         else:
             print(output)
