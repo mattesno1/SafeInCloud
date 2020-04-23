@@ -2,26 +2,25 @@
 A python utility to decrypt Safe In Cloud databases files
 
 Usage:
-  desafe <file> card [<filter>...] [-p] [-r] [-d]
-  desafe <file> label
+  desafe <file> card [-t TITLE] [-f FILTER...] [-p] [-r] [-d]
+  desafe <file> pass -t TITLE [-f FILTER...]
   desafe <file> export (json|xml) [<output-file>]
-  desafe <file> pass <filter>
   desafe (-h | --help)
 
-self.args:
-  pass    Print password
-  card    Print cards
-  label   Print labels
-  export  Exports given file in clear in the given format (json or xml).
-  file    Safe in Cloud database file path
-  filter  optional words to filter entries
+Arguments:
+  card    print all cards.
+  pass    print only the password for the card with the specified title.
+  export  exports given file in clear in the given format (json or xml).
+  file    the Safe in Cloud database file path
 
 Options:
-  -p --password     Print passwords.
-  -r --raw          Print information keeping the original format.
-  -d --deleted      Included deleted items.
-  -h --help         Show this screen.
-  -v --version      Show version.
+  -f, --filter FILTER    Includes only cards which contain the all specified strings (case insensitive).
+  -t, --title TITLE      Find card with this exact title (case insensitive).
+  -p --password          Include passwords in output.
+  -r --raw               Print information keeping the original format.
+  -d --deleted           Included deleted items.
+  -h --help              Show this screen.
+  -v --version           Show version.
 """
 
 import struct
@@ -77,15 +76,21 @@ class Desafe:
             decompressor = zlib.decompressobj()
             return decompressor.decompress(data) + decompressor.flush()
 
-
-def is_valid(filters, content):
+def is_valid_filter(filters, card):
     if filters is None or len(filters) <= 0:
         return True
-    strcontent = json.dumps(content).lower()
+
+    jsondump = json.dumps(card).lower()
     for filter in filters:
-        if filter.lower() in strcontent.lower():
-            return True
-    return False
+        if not filter.lower() in jsondump:
+            return False
+    return True
+
+def is_valid_title(title, card):
+    return title is None or title.lower() == card['@title'].lower()
+
+def is_valid(filters, title, content):
+    return is_valid_filter(filters, content) and is_valid_title(title, content)
 
 def is_secret(type):
     return type and type in ['password', 'pin', 'secret']
@@ -141,9 +146,7 @@ class Shell(object):
         # execute the commmand option
         if self.args["export"]:
             self.export()
-        if self.args["label"]:
-            self.print_labels()
-        if self.args["card"]:
+        if self.args['card']:
             self.print_cards()
         if self.args['pass']:
             self.print_password()
@@ -167,24 +170,14 @@ class Shell(object):
         else:
             print(output)
 
-    def print_labels(self):
-        for db in self.doc:
-            if "label" not in self.doc[db] or len(self.doc[db]["label"]) <= 0:
-                print("database does not contain labels")
-                return
-
-            for label in self.doc[db]["label"]:
-                if "@name" in label:
-                    print(u"label: {}".format(label["@name"]))
-
     def print_cards(self):
         for db in self.doc:
             if "card" not in self.doc[db] or len(self.doc[db]["card"]) <= 0:
                 print("database does not contain cards")
                 return
 
-            for card in self.doc[db]["card"]:
-                if is_valid(self.args["<filter>"], card):
+            for card in self.doc[db]['card']:
+                if is_valid(self.args['--filter'], self.args['--title'], card):
                     # skip deleted ones
                     if (
                         "@deleted" in card
@@ -218,18 +211,11 @@ class Shell(object):
 
             cards = []
             for card in self.doc[db]['card']:
-                if is_valid(self.args['<filter>'], card):
+                if is_valid(self.args['--filter'], self.args['--title'], card):
                     # skip deleted ones
                     if '@deleted' in card and card['@deleted'] == 'true' and not self.args['--deleted']:
                         continue
                     cards.append(card)
-
-            if len(cards) == 0:
-                print "ERROR: filter returned no card."
-                sys.exit(1)
-            if len(cards) > 1:
-                print "ERROR: filter returned more than 1 card."
-                sys.exit(1)
 
             card = get_card(cards[0])
             for field in card['field']:
