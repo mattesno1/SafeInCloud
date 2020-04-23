@@ -131,7 +131,7 @@ class Shell(object):
             print("ERROR: could not open file '{}'".format(file_path))
             sys.exit(1)
 
-        db = Desafe(file_path, getpass.getpass())
+        db = Desafe(file_path, getpass.getpass('Safe in Cloud Password:'))
         try:
             self.xmldata = db.decrypt()
         except Exception:
