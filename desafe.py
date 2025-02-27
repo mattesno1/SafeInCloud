@@ -3,15 +3,17 @@ A python utility to decrypt Safe In Cloud databases files
 
 Usage:
   desafe <file> card [-t TITLE] [-f FILTER...] [-p] [-r] [-d]
+  desafe <file> label
   desafe <file> pass -t TITLE [-f FILTER...]
   desafe <file> export (json|xml) [-o FILE]
   desafe (-h | --help)
 
 Arguments:
-  card    print all cards.
+  card    Print cards
+  label   Print labels
   pass    print only the password for the card with the specified title.
-  export  exports given file in clear in the given format (json or xml).
-  file    the Safe in Cloud database file path
+  export  Exports given file in clear in the given format (json or xml).
+  file    Safe in Cloud database file path
 
 Options:
   -f, --filter FILTER    Includes only cards which contain the all specified strings (case insensitive).
@@ -88,42 +90,42 @@ def is_valid_filter(filters, card):
     return True
 
 def is_valid_title(title, card):
-    return title is None or title.lower() == card['@title'].lower()
+    return title is None or title.lower() == card["@title"].lower()
 
 def is_valid(filters, title, content):
     return is_valid_filter(filters, content) and is_valid_title(title, content)
 
 def is_secret(type):
-    return type and type in ['password', 'pin', 'secret']
+    return type and type in ["password", "pin", "secret"]
 
 def get_card(card):
-    ocard = {'title': 'unknown', 'field': []}
-    if '@title' in card:
-        ocard['title'] = card['@title']
-    if 'field' in card:
+    ocard = {"title": "unknown", "field": []}
+    if "@title" in card:
+        ocard["title"] = card["@title"]
+    if "field" in card:
         # ensure field is a list
-        if not isinstance(card['field'], (list)):
+        if not isinstance(card["field"], (list)):
             field = []
-            field.append(card['field'])
-            card['field'] = field
+            field.append(card["field"])
+            card["field"] = field
 
-        for field in card['field']:
-            ofield = {'name': 'Unknown', 'text': ''}
+        for field in card["field"]:
+            ofield = {"name": "Unknown", "text": ""}
 
-            if '@name' in field and field['@name']:
-                ofield['name'] = field['@name']
-            if '@type' in field and field['@type']:
-                ofield['type'] = field['@type']
-            if '#text' in field and field['#text']:
-                ofield['text'] = field['#text']
-            ocard['field'].append(ofield)
-    return ocard;
+            if "@name" in field and field["@name"]:
+                ofield["name"] = field["@name"]
+            if "@type" in field and field["@type"]:
+                ofield["type"] = field["@type"]
+            if "#text" in field and field["#text"]:
+                ofield["text"] = field["#text"]
+            ocard["field"].append(ofield)
+    return ocard
 
 
 class Shell(object):
     def __init__(self):
-        self.args = docopt(__doc__, version='Desafe for Safe In Cloud 0.0.6')
-        # print self.args
+        self.args = docopt(__doc__)
+        # print(self.args)
 
         file_path = self.args["<file>"]
         try:
@@ -132,7 +134,7 @@ class Shell(object):
             print("ERROR: could not open file '{}'".format(file_path))
             sys.exit(1)
 
-        db = Desafe(file_path, getpass.getpass('Safe in Cloud Password:'))
+        db = Desafe(file_path, getpass.getpass("Safe in Cloud Password:"))
         try:
             self.xmldata = db.decrypt()
         except Exception:
@@ -147,9 +149,11 @@ class Shell(object):
         # execute the commmand option
         if self.args["export"]:
             self.export()
-        if self.args['card']:
+        if self.args["label"]:
+            self.print_labels()
+        if self.args["card"]:
             self.print_cards()
-        if self.args['pass']:
+        if self.args["pass"]:
             self.print_password()
 
     def export(self):
@@ -159,12 +163,12 @@ class Shell(object):
         else:  # it must be xml
             output = self.xmldata
 
-        if self.args['--output']:
+        if self.args["--output"]:
             try:
-                with open(self.args['--output'], "w") as f:
+                with open(self.args["--output"], "w") as f:
                     f.write(output)
             except Exception:
-                print "ERROR: could not write on '{}'".format(self.args['--output'])
+                print("ERROR: could not write on '{}'".format(self.args["--output"]))
                 sys.exit(1)
         else:
             print(output)
@@ -175,8 +179,8 @@ class Shell(object):
                 print("database does not contain cards")
                 return
 
-            for card in self.doc[db]['card']:
-                if is_valid(self.args['--filter'], self.args['--title'], card):
+            for card in self.doc[db]["card"]:
+                if is_valid(self.args["--filter"], self.args["--title"], card):
                     # skip deleted ones
                     if (
                         "@deleted" in card
@@ -189,37 +193,47 @@ class Shell(object):
                         ocard = card
                         if not self.args["--password"] and "field" in card:
                             fields = []
-                            for field in card['field']:
-                                if '@type' not in field or not is_secret(field['@type']):
+                            for field in card["field"]:
+                                if "@type" not in field or not is_secret(field["@type"]):
                                     fields.append(field)
                             ocard["field"] = fields
                         print(json.dumps(ocard, indent=4))
                     else:
                         ocard = get_card(card)
-                        print u'Card: {}'.format(ocard['title'])
-                        for field in ocard['field']:
-                            if not self.args['--password'] and 'type' in field and is_secret(field['type']):
+                        print(u"Card: {}".format(ocard["title"]))
+                        for field in ocard["field"]:
+                            if not self.args["--password"] and "type" in field and is_secret(field["type"]):
                                 continue
-                            print u'  {}: {}'.format(field['name'], field['text'])
+                            print(u"  {}: {}".format(field["name"], field["text"]))
+
+    def print_labels(self):
+        for db in self.doc:
+            if "label" not in self.doc[db] or len(self.doc[db]["label"]) <= 0:
+                print("database does not contain labels")
+                return
+
+            for label in self.doc[db]["label"]:
+                if "@name" in label:
+                    print(u"label: {}".format(label["@name"]))
 
     def print_password(self):
         for db in self.doc:
-            if 'card' not in self.doc[db] or len(self.doc[db]['card']) <= 0:
-                print "database does not contain cards"
+            if "card" not in self.doc[db] or len(self.doc[db]["card"]) <= 0:
+                print("database does not contain cards")
                 return
 
             cards = []
-            for card in self.doc[db]['card']:
-                if is_valid(self.args['--filter'], self.args['--title'], card):
+            for card in self.doc[db]["card"]:
+                if is_valid(self.args["--filter"], self.args["--title"], card):
                     # skip deleted ones
-                    if '@deleted' in card and card['@deleted'] == 'true' and not self.args['--deleted']:
+                    if "@deleted" in card and card["@deleted"] == "true" and not self.args["--deleted"]:
                         continue
                     cards.append(card)
 
             card = get_card(cards[0])
-            for field in card['field']:
-                if 'type' in field and 'password' == field['type']:
-                    print u'{}'.format(field['text'])
+            for field in card["field"]:
+                if "type" in field and "password" == field["type"]:
+                    print(u"{}".format(field["text"]))
 
 def main():
     Shell()

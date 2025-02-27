@@ -21,12 +21,12 @@ else:
 
 setup(
     zip_safe=True,
-    name='desafe',
-    version='0.0.6',
-    author='pjon',
-    py_modules=['desafe'],
-    description='An utility to decrypt Safe in Cloud password files',
-    license='LICENSE',
+    name="desafe",
+    version=version,
+    author="pjon",
+    py_modules=["desafe"],
+    description="An utility to decrypt Safe in Cloud password files",
+    license="LICENSE",
     install_requires=[
         "pycrypto",
         "xmltodict",
@@ -34,8 +34,8 @@ setup(
         "docopt"
     ],
     entry_points={
-        'console_scripts': [
-            'desafe = desafe:main'
+        "console_scripts": [
+            "desafe = desafe:main"
         ]
     },
     classifiers=[
